@@ -1,0 +1,359 @@
+***********************************************Study 212****************************************************************;
+
+/*Import data for study 212*/
+proc import out=NOR212_a
+	datafile="&file_path.\NatCommFiles\212_202_215_all.xlsx" dbms=xlsx replace;
+	sheet='NOR212_complete';
+	getnames=yes;
+	options msglevel=I;
+run;
+
+proc contents data=NOR212_a; run;
+
+/*Evaluate association between AcuteGE and first GII.4 infecting strain*/
+proc freq data=NOR212_a; where AcuteGE ne 0; table FirstGII4*AcuteGE/norow nocol nopercent; exact fisher/ mc n=500000;  run;
+
+/*Evaluate association between Vaccination and first GII.4 infecting strain*/
+proc freq data=NOR212_a; where AcuteGE ne 0; tables Exposure*(FirstGII4)/norow nocol nopercent; exact fisher/ mc n=50000; run; 
+
+/*Full model + reduced models - linear regression*/
+proc sort data=NOR212_a; by exposure /*vaccination status*/; run;
+proc genmod data=NOR212_a; by exposure; class FirstGII4 Country; model GII4c_4=AcuteGE|FirstGII4|Country|Age_years; run;
+proc genmod data=NOR212_a; by exposure; class FirstGII4 Country; model GII4c_4=AcuteGE FirstGII4 Country Age_years; run;
+proc genmod data=NOR212_a; by exposure; class FirstGII4 Country; model GII4c_4=AcuteGE FirstGII4|Country Age_years; run;
+proc genmod data=NOR212_a; by exposure; class FirstGII4 Country; model GII4c_4=FirstGII4|Country; run;
+
+/*Remove observations without infection during follow-up*/
+data NOR212_b; set NOR212_a; if AcuteGE=1 then GE=0; if AcuteGE=2 or AcuteGE=3 then GE=1; else if AcuteGE=0 then delete; run;
+
+/*Estimate mean geometric titers for each GII.4 variant, stratified by AcuteGE and vaccination status*/
+proc sort data=NOR212_b; by GE exposure; run;
+proc surveymeans data=NOR212_b geomean gmclm plots=none; where FirstGII4='GII4 SF'; by GE exposure; var GII4c_4 GII4SF_4 GII4SY_4 GII4WI_4 GII4AL_4; run;
+proc surveymeans data=NOR212_b geomean gmclm plots=none; where FirstGII4='GII4 Syd'; by GE exposure; var GII4c_4 GII4SF_4 GII4SY_4 GII4WI_4 GII4AL_4; run;
+proc surveymeans data=NOR212_b geomean gmclm plots=none; where FirstGII4='GII4 WI'; by GE exposure; var GII4c_4 GII4SF_4 GII4SY_4 GII4WI_4 GII4AL_4; run;
+proc surveymeans data=NOR212_b geomean gmclm plots=none; where FirstGII4='GII4 AL'; by GE exposure; var GII4c_4 GII4SF_4 GII4SY_4 GII4WI_4 GII4AL_4; run;
+proc surveymeans data=NOR212_b geomean gmclm plots=none; where FirstGII4='GII4 U'; by GE exposure; var GII4c_4 GII4SF_4 GII4SY_4 GII4WI_4 GII4AL_4; run;
+
+/*Estimate association between gastroenteritis severity and post-infection sNAbts, stratified by vaccination status*/
+proc sort data=NOR212_b; by exposure GE; run;
+proc genmod data=NOR212_b; by exposure; class GE(ref="0"); model GII4c_4 = GE/ type3; run;
+proc genmod data=NOR212_b; by exposure; class GE(ref="0"); model GII4SF_4 = GE/ type3; run;
+proc genmod data=NOR212_b; by exposure; class GE(ref="0"); model GII4SY_4 = GE/ type3; run;
+proc genmod data=NOR212_b; by exposure; class GE(ref="0"); model GII4WI_4 = GE/ type3; run;
+proc genmod data=NOR212_b; by exposure; class GE(ref="0"); model GII4AL_4 = GE/ type3; run;
+
+proc sort data=NOR212_b; by exposure; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 SF'; model GII4c_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 Syd'; model GII4c_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 WI'; model GII4c_4  = GE; lsmeans GE /adjust=tukey; run;
+
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 SF'; model GII4SF_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 Syd'; model GII4SF_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 WI'; model GII4SF_4  = GE; lsmeans GE /adjust=tukey; run;
+
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 SF'; model GII4SY_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 Syd'; model GII4SY_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 WI'; model GII4SY_4  = GE; lsmeans GE /adjust=tukey; run;
+
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 SF'; model GII4WI_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 Syd'; model GII4WI_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 WI'; model GII4WI_4  = GE; lsmeans GE /adjust=tukey; run;
+
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 SF'; model GII4AL_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 Syd'; model GII4AL_4  = GE; lsmeans GE /adjust=tukey; run;
+proc glm data=NOR212_b plots=none; by Exposure; class GE; where FirstGII4='GII4 WI'; model GII4AL_4  = GE; lsmeans GE /adjust=tukey; run;
+
+/*Figure 3H*/
+data NOR212_b1;
+	set NOR212_a;
+	if GII4SY_1 <= 60 and GII4AL_1 <= 60 and GII4WI_1 <=60 and GII4SF_1 <= 60 then Preimmune=0;
+	else preimmune=1;
+	if AcuteGE=1 or AcuteGE=2 or AcuteGE=3 then disease=1;
+	else disease=0;
+run;
+
+proc freq data=NOR212_b1; table exposure*disease/ norow nocol nopercent fisher; run;
+
+data NOR212_b2;
+	set NOR212_b1;
+	array visit3(*) GII4c_3 GII4SY_3 GII4AL_3 GII4WI_3 GII4SF_3;
+	V3_Breadth=0;
+	do i = 1 to dim(visit3); 
+	 if visit3(i) = . then V3_Breadth= .;
+	 else if visit3(i) >240 then V3_Breadth=V3_Breadth +1;
+	end;
+	drop i;
+run;
+proc contents data=NOR212_b2; run;
+proc sort data=NOR212_b2; by disease; run;
+proc freq data=NOR212_b2; by disease; table exposure*V3_Breadth/ norow nocol nopercent fisher; run;
+
+ods graphics on;
+proc freq data=NOR212_b2;
+   tables exposure*V3_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+data NOR212_b3;
+	set NOR212_b2;
+	array visit4(*) GII4c_4 GII4SY_4 GII4AL_4 GII4WI_4 GII4SF_4;
+	V4_Breadth=0;
+	do i = 1 to dim(visit4); 
+	 if visit4(i) = . then V4_Breadth= .;
+	 else if visit4(i) >240 then V4_Breadth=V4_Breadth +1;
+	end;
+	drop i;
+run;
+
+proc sort data=NOR212_b3; by preimmune; run;
+proc freq data=NOR212_b3; by preimmune; table exposure*V4_Breadth/ norow nocol nopercent fisher; run;
+
+/*Figure 3I*/
+
+data NOR212_b4; set NOR212_b3; if AcuteGE = 1 or AcuteGE = 2 or AcuteGE = 3 then Outcome=1; else Outcome = 0; run; 
+data NOR212_b5; set NOR212_b4; 
+	if exposure = 1 and outcome = 1 then VxGe= "HIL-214_AGE";
+	if exposure = 1 and outcome = 0 then VxGe= "HIL-214_No";
+	if exposure = 0 and outcome = 1 then VxGe= "placebo_AGE";
+	if exposure = 0 and outcome = 0 then VxGe= "placebo_No";
+run;
+
+proc genmod data= NOR212_b5; class VxGe (ref="HIL-214_AGE"); model V3_Breadth = VxGe; run;
+proc genmod data= NOR212_b5; class VxGe (ref="HIL-214_No"); model V3_Breadth = VxGe; run;
+proc genmod data= NOR212_b5; class VxGe (ref="placebo_AGE"); model V3_Breadth = VxGe; run;
+proc genmod data= NOR212_b5; class VxGe (ref="placebo_No"); model V3_Breadth = VxGe; run;
+
+proc genmod data= NOR212_b5; class VxGe (ref="HIL-214_AGE"); model V4_Breadth = VxGe; run;
+proc genmod data= NOR212_b5; class VxGe (ref="HIL-214_No"); model V4_Breadth = VxGe; run;
+proc genmod data= NOR212_b5; class VxGe (ref="placebo_AGE"); model V4_Breadth = VxGe; run;
+proc genmod data= NOR212_b5; class VxGe (ref="placebo_No"); model V4_Breadth = VxGe; run;
+
+***********************************************Study 212****************************************************************;
+/*Remove placebo recipients*/
+data NOR212_a1;
+	set NOR212_a;
+	if exposure = 0 then delete;
+	study=212;
+run;
+
+proc contents data=NOR212_a1; run;
+
+***********************************************Study 202****************************************************************;
+/*Import study 202*/
+proc import out=nor202
+	datafile="&file_path.\NatCommFiles\212_202_215_all.xlsx" dbms=xlsx replace;
+	sheet='NOR202_complete';
+	getnames=yes;
+	options msglevel=I;
+run;
+
+/*add study number variable*/
+data nor202a;
+	set nor202;
+	Study=202;
+run;
+
+***********************************************Study 215****************************************************************;
+/*Import study 215*/
+proc import out=nor215
+	datafile="&file_path.\NatCommFiles\212_202_215_all.xlsx" dbms=xlsx replace;
+	sheet='NOR215_complete';
+	getnames=yes;
+	options msglevel=I;
+run;
+
+/*Add study number variable*/
+data nor215a;
+	set nor215;
+	Study=215;
+run;
+
+/*Sort files by common variable*/
+proc sort data=nor212_a1; by StudyID; run;
+proc sort data=nor202a; by StudyID; run;
+proc sort data=nor215a; by StudyID; run;
+
+/*Merge study files into single file*/
+data HIL214;
+	set nor202a nor212_a1 nor215a;
+run;
+
+proc contents data=HIL214; run;
+
+/*Create categorical variable for age (Cohort)*/
+/*Post-vaccination breadth variable with cutoff as 4-fold increase of the lower limit of detection (Post_Breadth)*/
+data HIL214a;
+	set HIL214;
+	if study = 202 and Age >=4 and Age < 9 then Cohort='4- <9 years of age';
+	if study = 202 and Age >=1 and Age < 4 then Cohort='1- <4 years of age';
+	if study = 202 and Age <1 and Age >= 0.5 then Cohort='0.5-<1 years';
+	else if study = 202 and Age <0.5 then delete;
+	if study = 212 then cohort='0.4 years of age';
+ 	if study = 215 then Cohort='18-<50 years';
+	if GII4Syd_Pre <=60 and GII4AL_Pre <= 60 and GII4WI_Pre <= 60 and GII4SF_Pre <=60 and GII4_1997_Pre <= 60 then Preimmune=0;
+		else preimmune=1;
+ 	array Post(*) GII4C_Post GII4Syd_Post GII4AL_Post GII4WI_Post GII4SF_Post;
+		Post_Breadth=0;
+		do i = 1 to dim(Post); 
+	 		if Post(i) >240 then Post_Breadth=Post_Breadth +1;
+	end;
+	drop i;
+run;
+
+/*Check table counts for post-vaccination breadth of response in each cohort stratified by baseline serostatus*/
+proc sort data=HIL214a; by preimmune; run;
+/*Figure 5B & Table S14*/
+proc freq data=HIL214a; by preimmune; table Cohort*Post_Breadth/norow nocol nopercent ; run;
+proc freq data=HIL214a; table cohort/norow nocol nopercent; run;
+
+/*Statistics for baseline serostatus vs Post-vaccination breadth, stratified by age cohort*/
+proc contents data=HIL214a; run;
+ods graphics on;
+proc freq data=HIL214a;  
+	where cohort='0.4 years of age ';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+ods graphics on;
+proc freq data=HIL214a;  
+	where cohort='0.5-<1 years';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+ods graphics on;
+proc freq data=HIL214a;  
+	where cohort='1- <4 years of age ';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+ods graphics on;
+proc freq data=HIL214a;  
+	where cohort='4- <9 years of age ';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+
+ods graphics on;
+proc freq data=HIL214a;  
+	where cohort='18-<50 years ';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+/*Statistics for age cohort vs Post-vaccination breadth, stratified by baseline serostatus*/
+proc contents data=HIL214a; run;
+ods graphics on;
+proc freq data=HIL214a;  
+	by preimmune;
+	tables cohort*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+/*Regression models for breadth of response following vaccination (dependent variable) vs age cohort (independent variable) stratified by preimmune status (EMM)*/
+/*Figure 5C*/
+proc sort data=HIL214a; run;
+proc genmod data=HIL214a; by preimmune; class cohort (ref='18-<50 years '); model Post_Breadth=cohort / type3; run;
+proc genmod data=HIL214a; by preimmune; class cohort (ref='4- <9 years of age '); model Post_Breadth=cohort / type3; run;
+proc genmod data=HIL214a; by preimmune; class cohort (ref='1- <4 years of age '); model Post_Breadth=cohort / type3; run;
+proc genmod data=HIL214a; by preimmune; class cohort (ref='0.5-<1 years'); model Post_Breadth=cohort / type3; run;
+proc genmod data=HIL214a; by preimmune; class cohort (ref='0.4 years of age '); model Post_Breadth=cohort / type3; run;
+
+/*ICH-E11 age strata*/
+/*Create categorical variable for age (Cohort)*/
+/*Post-vaccination breadth variable with cutoff as 4-fold increase of the lower limit of detection (Post_Breadth)*/
+data HIL214b;
+	set HIL214;
+	if study = 202 and Age >=2 and Age < 9 then Cohort='2- <9 years of age';
+	if study = 202 and Age >=1 and Age < 2 then Cohort='1- <2 years of age';
+	if study = 202 and Age <1 and Age >= 0.5 then Cohort='0.5-<1 years';
+	else if study = 202 and Age <0.5 then delete;
+	if study = 212 then cohort='0.4 years of age';
+ 	if study = 215 then Cohort='18-<50 years';
+	if GII4Syd_Pre <=60 and GII4AL_Pre <= 60 and GII4WI_Pre <= 60 and GII4SF_Pre <=60 and GII4_1997_Pre <= 60 then Preimmune=0;
+		else preimmune=1;
+ 	array Post(*) GII4C_Post GII4Syd_Post GII4AL_Post GII4WI_Post GII4SF_Post;
+		Post_Breadth=0;
+		do i = 1 to dim(Post); 
+	 		if Post(i) >240 then Post_Breadth=Post_Breadth +1;
+	end;
+	drop i;
+run;
+
+/*Check table counts for post-vaccination breadth of response in each cohort stratified by baseline serostatus*/
+proc sort data=HIL214b; by preimmune; run;
+/*Figure S5 & Table S14*/
+proc freq data=HIL214b; by preimmune; table Cohort*Post_Breadth/norow nocol nopercent ; run;
+proc freq data=HIL214b; table cohort/norow nocol nopercent; run;
+
+/*Statistics for baseline serostatus vs Post-vaccination breadth, stratified by age cohort*/
+proc contents data=HIL214a; run;
+ods graphics on;
+proc freq data=HIL214b;  
+	where cohort='0.4 years of age ';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+ods graphics on;
+proc freq data=HIL214b;  
+	where cohort='0.5-<1 years';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+ods graphics on;
+proc freq data=HIL214b;  
+	where cohort='1- <2 years of age ';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+ods graphics on;
+proc freq data=HIL214b;  
+	where cohort='2- <9 years of age ';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+
+ods graphics on;
+proc freq data=HIL214b;  
+	where cohort='18-<50 years ';
+	tables preimmune*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+/*Statistics for age cohort vs Post-vaccination breadth, stratified by baseline serostatus*/
+proc contents data=HIL214b; run;
+ods graphics on;
+proc freq data=HIL214b;  
+	by preimmune;
+	tables cohort*Post_Breadth /
+          chisq cmh plots(only)=freqplot(twoway=cluster);
+run;
+ods graphics off;
+
+/*Regression models for breadth of response following vaccination (dependent variable) vs age cohort (independent variable) stratified by preimmune status (EMM)*/
+/*Figure S5*/
+proc sort data=HIL214b; run;
+proc genmod data=HIL214b; by preimmune; class cohort (ref='18-<50 years '); model Post_Breadth=cohort / type3; run;
+proc genmod data=HIL214b; by preimmune; class cohort (ref='2- <9 years of age '); model Post_Breadth=cohort / type3; run;
+proc genmod data=HIL214b; by preimmune; class cohort (ref='1- <2 years of age '); model Post_Breadth=cohort / type3; run;
+proc genmod data=HIL214b; by preimmune; class cohort (ref='0.5-<1 years'); model Post_Breadth=cohort / type3; run;
+proc genmod data=HIL214b; by preimmune; class cohort (ref='0.4 years of age '); model Post_Breadth=cohort / type3; run;
